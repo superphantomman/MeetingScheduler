@@ -17,13 +17,7 @@ public class ServiceAgent extends Agent {
 		ServiceDescription sd1 = new ServiceDescription();
 		sd1.setType("answers");
 		sd1.setName("wordnet");
-		//service no 2
-		ServiceDescription sd2 = new ServiceDescription();
-		sd2.setType("answers");
-		sd2.setName("dictionary");
-		//add them all
-		dfad.addServices(sd1);
-		dfad.addServices(sd2);
+
 		try {
 			DFService.register(this,dfad);
 		} catch (FIPAException ex) {
@@ -31,7 +25,7 @@ public class ServiceAgent extends Agent {
 		}
 		
 		addBehaviour(new WordnetCyclicBehaviour(this));
-		addBehaviour(new DictionaryCyclicBehaviour(this));
+
 		//doDelete();
 	}
 	protected void takeDown() {
@@ -42,113 +36,39 @@ public class ServiceAgent extends Agent {
 			ex.printStackTrace();
 		}
 	}
-	public String makeRequest(String serviceName, String word)
-	{
-		StringBuffer response = new StringBuffer();
-		try
-		{
-			URL url;
-			URLConnection urlConn;
-			DataOutputStream printout;
-			DataInputStream input;
-			url = new URL("http://dict.org/bin/Dict");
-			urlConn = url.openConnection();
-			urlConn.setDoInput(true);
-			urlConn.setDoOutput(true);
-			urlConn.setUseCaches(false);
-			urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-			String content = "Form=Dict1&Strategy=*&Database=" + URLEncoder.encode(serviceName) + "&Query=" + URLEncoder.encode(word) + "&submit=Submit+query";
-			//forth
-			printout = new DataOutputStream(urlConn.getOutputStream());
-			printout.writeBytes(content);
-			printout.flush();
-			printout.close();
-			//back
-			input = new DataInputStream(urlConn.getInputStream());
-			String str;
-			while (null != ((str = input.readLine())))
-			{
-				response.append(str);
-			}
-			input.close();
-		}
-		catch (Exception ex)
-		{
-			System.out.println(ex.getMessage());
-		}
-		//cut what is unnecessary
-		return response.substring(response.indexOf("<hr>")+4, response.lastIndexOf("<hr>"));
-	}
+
 }
 
-class WordnetCyclicBehaviour extends CyclicBehaviour
+class WordnetCyclicBehaviour extends TickerBehaviour
 {
 	ServiceAgent agent;
 	public WordnetCyclicBehaviour(ServiceAgent agent)
 	{
+		super(agent, 5000);
 		this.agent = agent;
 	}
-	public void action()
+	public void onTick()
 	{
-		MessageTemplate template = MessageTemplate.MatchOntology("wordnet");
-		ACLMessage message = agent.receive(template);
+		System.out.println("SA");
+		ACLMessage message = agent.receive();
 		if (message == null)
 		{
+			message = new ACLMessage(ACLMessage.REQUEST);
+			message.setContent("ServiceAgent");
+			message.addReceiver(new AID("ManagerAgent", AID.ISLOCALNAME));
+			myAgent.send(message);
 			block();
 		}
 		else
 		{
-			//process the incoming message
-			String content = message.getContent();
-			ACLMessage reply = message.createReply();
-			reply.setPerformative(ACLMessage.INFORM);
-			String response = "";
-			try
-			{
-				response = agent.makeRequest("wn",content);
-			}
-			catch (NumberFormatException ex)
-			{
-				response = ex.getMessage();
-			}
-			reply.setContent(response);
-			agent.send(reply);
+			System.out.println(message.getContent());
+			block();
+//			ACLMessage reply = message.createReply();
+//			reply.setPerformative(ACLMessage.REQUEST);
+//			String response = "ServiceAgent";
+//			reply.setContent(response);
+//			agent.send(reply);
 		}
 	}
 }
 
-class DictionaryCyclicBehaviour extends CyclicBehaviour
-{
-	ServiceAgent agent;
-	public DictionaryCyclicBehaviour(ServiceAgent agent)
-	{
-		this.agent = agent;
-	}
-	public void action()
-	{
-		MessageTemplate template = MessageTemplate.MatchOntology("dictionary");
-		ACLMessage message = agent.receive(template);
-		if (message == null)
-		{
-			block();
-		}
-		else
-		{
-			//process the incoming message
-			String content = message.getContent();
-			ACLMessage reply = message.createReply();
-			reply.setPerformative(ACLMessage.INFORM);
-			String response = "";
-			try
-			{
-				response = agent.makeRequest("english", content);
-			}
-			catch (NumberFormatException ex)
-			{
-				response = ex.getMessage();
-			}
-			reply.setContent(response);
-			agent.send(reply);
-		}
-	}
-}
