@@ -89,6 +89,7 @@ class ManagingCyclicBehaviour extends CyclicBehaviour {
             displaysCurrentOffers(conversationId, content);
             if (isBestHourChosen) {
                 informMeetingAgentsAboutEndOfMeetingPlanning();
+                System.out.println("Best hour for all meeting agents is " + scheduler.getBestMeetingTime());
                 agent.displayResponse("Best hour for all meeting agents is " + scheduler.getBestMeetingTime());
             }
             else
@@ -102,7 +103,7 @@ class ManagingCyclicBehaviour extends CyclicBehaviour {
         System.out.println(("id: " + id + " offers " + OfferConverter.convert(content)));
     }
     private void informMeetingAgentsAboutEndOfMeetingPlanning() {
-        for (int i = 0; i < scheduler.getNumberOfAgents(); i++) {
+        for (int i = 1; i <= scheduler.getNumberOfAgents(); i++) {
             ACLMessage message = new ACLMessage(ACLMessage.INFORM);
             message.setContent("End");
             message.addReceiver(new AID("MeetingAgent" + i, AID.ISLOCALNAME));

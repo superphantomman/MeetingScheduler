@@ -125,6 +125,7 @@ class MeetingTickerBehaviour extends TickerBehaviour {
         ACLMessage message = agent.receive();
         if (message != null && message.getPerformative() == ACLMessage.INFORM && message.getContent().equals("End")) {
             isConversationOver = true;
+            System.out.println(agent.getLocalName() + " stopping my work");
             stop();
             return;
         }
