@@ -1,14 +1,18 @@
 package jadelab1.items;
 
-public record Offer(int hour, float priority) implements Comparable<Offer> {
+public class Offer implements Comparable<Offer> {
+    private float priority;
+    private int hour;
 
-    public Offer {
+    public Offer(int hour, float priority) {
         if (hour < 0 || hour > 23) {
             throw new IllegalArgumentException("Hour must be between 0 and 23");
         }
         if (priority < 0) {
             throw new IllegalArgumentException("Priority must be non-negative");
         }
+        this.hour = hour;
+        this.priority = priority;
     }
 
     public Offer(String string) {
@@ -66,5 +70,21 @@ public record Offer(int hour, float priority) implements Comparable<Offer> {
     @Override
     public String toString() {
         return hour + "-" + priority;
+    }
+
+    public float priority() {
+        return priority;
+    }
+
+    public void setPriority(float priority) {
+        this.priority = priority;
+    }
+
+    public int hour() {
+        return hour;
+    }
+
+    public void setHour(int hour) {
+        this.hour = hour;
     }
 }

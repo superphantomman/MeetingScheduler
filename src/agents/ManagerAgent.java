@@ -4,8 +4,8 @@ import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.*;
 import jade.lang.acl.ACLMessage;
-import jade.tools.sniffer.Message;
 import jadelab1.items.ManagerScheduler;
+import jadelab1.items.OfferConverter;
 
 import javax.swing.*;
 
@@ -20,28 +20,26 @@ import javax.swing.*;
  *  */
 
 /*TODO
-* Agent powinien kończyć konwersacje
-* Podejmować decyzje o najlepszej godzinie, wtedy gdy już zostaje ona wybrana
-* Powinno zostać wykorzystane do tego ManagerScheduler,  do wybrana najkorzystniejszej godziny
-*
-* */
+ * Agent powinien kończyć konwersacje
+ * Podejmować decyzje o najlepszej godzinie, wtedy gdy już zostaje ona wybrana
+ * Powinno zostać wykorzystane do tego ManagerScheduler,  do wybrana najkorzystniejszej godziny
+ *
+ * */
 
 public class ManagerAgent extends Agent {
-    private int sendTo = 0;
-    private ManagerScheduler scheduler;
 
     protected void setup() {
-        displayResponse("Hello, I am " + getAID().getLocalName());
-
 
         var learnMeetingParticipants = new LearnMeetingParticipants(this);
         var managingCyclicBehaviour = new ManagingCyclicBehaviour(this);
 
         addBehaviour(learnMeetingParticipants);
-        WakerBehaviour wakerBehaviour = new WakerBehaviour(this, 5000) {
+        WakerBehaviour wakerBehaviour = new WakerBehaviour(this, 10000) {
             @Override
             protected void onWake() {
-                scheduler = new ManagerScheduler(learnMeetingParticipants.getNumberOfMeetingAgents());
+                final ManagerScheduler scheduler = new
+                        ManagerScheduler(learnMeetingParticipants.getNumberOfMeetingAgents());
+                managingCyclicBehaviour.setScheduler(scheduler);
                 learnMeetingParticipants.setFinished(true);
                 addBehaviour(managingCyclicBehaviour);
             }
@@ -59,14 +57,11 @@ public class ManagerAgent extends Agent {
     }
 
 
-    public int getSendTo() {
-        sendTo = sendTo % 3 + 1;
-        return sendTo;
-    }
 }
 
 class ManagingCyclicBehaviour extends CyclicBehaviour {
     private final ManagerAgent agent;
+    private ManagerScheduler scheduler;
 
 
     public ManagingCyclicBehaviour(ManagerAgent agent) {
@@ -74,25 +69,45 @@ class ManagingCyclicBehaviour extends CyclicBehaviour {
         this.agent = agent;
     }
 
+    public void setScheduler(ManagerScheduler scheduler) {
+        this.scheduler = scheduler;
+    }
+
     public void action() {
-//        System.out.println("MA");
         ACLMessage message = agent.receive();
         if (message == null) {
             block();
             return;
         }
 
-        System.out.println("ManagerAgent received");
+        String conversationId = message.getConversationId();
         String content = message.getContent();
         int performative = message.getPerformative();
+
         if (performative == ACLMessage.PROPOSE) {
-            System.out.println("ManagerAgent sendback proposal");
-            System.out.println(content);
-            agent.send(createRespondMessage(message));
+            final boolean isBestHourChosen = scheduler.add(conversationId, OfferConverter.convert(content));
+            displaysCurrentOffers(conversationId, content);
+            if (isBestHourChosen) {
+                informMeetingAgentsAboutEndOfMeetingPlanning();
+                agent.displayResponse("Best hour for all meeting agents is " + scheduler.getBestMeetingTime());
+            }
+            else
+                agent.send(createRespondMessage(message));
         }
 
 
+    }
 
+    public void displaysCurrentOffers(String id, String content) {
+        System.out.println(("id: " + id + " offers " + OfferConverter.convert(content)));
+    }
+    private void informMeetingAgentsAboutEndOfMeetingPlanning() {
+        for (int i = 0; i < scheduler.getNumberOfAgents(); i++) {
+            ACLMessage message = new ACLMessage(ACLMessage.INFORM);
+            message.setContent("End");
+            message.addReceiver(new AID("MeetingAgent" + i, AID.ISLOCALNAME));
+            agent.send(message);
+        }
     }
 
     private ACLMessage createRespondMessage(ACLMessage m) {
@@ -108,7 +123,8 @@ class ManagingCyclicBehaviour extends CyclicBehaviour {
 class LearnMeetingParticipants extends SimpleBehaviour {
     private int numberOfMeetingAgents = 0;
     private final ManagerAgent agent;
-    private boolean isFinished =false;
+    private boolean isFinished = false;
+
     public LearnMeetingParticipants(ManagerAgent agent) {
         super(agent);
         this.agent = agent;

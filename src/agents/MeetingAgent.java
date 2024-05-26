@@ -5,7 +5,7 @@ import jade.core.behaviours.*;
 import jade.lang.acl.*;
 import jade.domain.*;
 import jade.domain.FIPAAgentManagement.*;
-import jadelab1.items.MeetingAgentContentConverter;
+import jadelab1.items.OfferConverter;
 import jadelab1.items.Offer;
 
 import java.util.LinkedList;
@@ -85,7 +85,7 @@ class MeetingTickerBehaviour extends TickerBehaviour {
     private final MeetingAgent agent;
     private final LinkedList<Offer> offers;
     private boolean isConversationOver = false;
-    private LinkedList<Offer> bestOffers = new LinkedList<>();
+    private final LinkedList<Offer> bestOffers = new LinkedList<>();
     private int currentOfferId = generateIdProposal();
 
     public MeetingTickerBehaviour(MeetingAgent agent) {
@@ -112,21 +112,41 @@ class MeetingTickerBehaviour extends TickerBehaviour {
 
 
     public void onTick() {
-        if (isConversationOver) {
-            return;
-        }
+
+
         if(bestOffers.isEmpty() && offers.isEmpty()) {
             isConversationOver = true;
-            ACLMessage message = new ACLMessage(ACLMessage.INFORM);
-            message.addReceiver(new AID("ManagerAgent", AID.ISLOCALNAME));
-            message.setContent("end");
+            ACLMessage message =  createEndMessage();
             agent.send(message);
+            stop();
             return;
         }
-        //TODO manager agent sends end of conversation
+
         ACLMessage message = agent.receive();
+        if (message != null && message.getPerformative() == ACLMessage.INFORM && message.getContent().equals("End")) {
+            isConversationOver = true;
+            stop();
+            return;
+        }
+
         sendingProposal(message);
 
+    }
+
+    private static void delay(long seconds) {
+        try {
+            // Wait for an additional 1 second
+            Thread.sleep(seconds * 1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private ACLMessage createEndMessage() {
+        ACLMessage message = new ACLMessage(ACLMessage.INFORM);
+        message.addReceiver(new AID("ManagerAgent", AID.ISLOCALNAME));
+        message.setContent("end");
+        return message;
     }
 
     private void sendingProposal(ACLMessage message) {
@@ -134,20 +154,20 @@ class MeetingTickerBehaviour extends TickerBehaviour {
         if (message == null) {
             message = createProposalMessage();
             agent.send(message);
+            delay(1L);
         } else {
             final int performative = message.getPerformative();
             if (performative == ACLMessage.ACCEPT_PROPOSAL) {
                 currentOfferId = generateIdProposal();
                 updateBestOffers();
             }
-            return;
         }
     }
 
     private ACLMessage createProposalMessage() {
         ACLMessage message;
         message = new ACLMessage(ACLMessage.PROPOSE);
-        message.setContent(MeetingAgentContentConverter.convert(bestOffers()));
+        message.setContent(OfferConverter.convert(bestOffers()));
         message.setConversationId(String.valueOf(currentOfferId));
         message.addReceiver(new AID("ManagerAgent", AID.ISLOCALNAME));
         return message;
