@@ -5,7 +5,7 @@ public class IdGenerator {
     private static int proposalIdGenerator = 1;
 
 
-    public static int generateIdMeetingAgent() {
+    public synchronized static int generateIdMeetingAgent() {
         return idMeetingAgentGenerator++;
     }
 

@@ -91,8 +91,8 @@ class MeetingTickerBehaviour extends TickerBehaviour {
     public MeetingTickerBehaviour(MeetingAgent agent) {
         super(agent, 2000);
         offers = generateOffers();
-        updateBestOffers();
         System.out.println("SA offers" + offers);
+        updateBestOffers();
         this.agent = agent;
     }
 
